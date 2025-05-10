@@ -4,7 +4,7 @@
     "slug": "HabitTracker-RN",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/habits.png",
     "scheme": "habittrackerrn",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

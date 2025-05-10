@@ -58,15 +58,15 @@ const Notes = () => {
             <SafeAreaView style={styles.container}>
                 <View style={{ flexDirection: "row", alignItems: "center", marginTop: 20 }}>
                     <TouchableOpacity onPress={() => changeDate(-1)}>
-                        <Text style={{ color: "#fff", fontSize: 24 }}>◀</Text>
+                        <Text style={{ color: "#fff", fontSize: 28 }}>◀</Text>
                     </TouchableOpacity>
 
-                    <Text style={{ color: "#fff", marginHorizontal: 20, fontSize: 20 }}>
+                    <Text style={{ color: "#fff", marginHorizontal: 15, fontSize: 20 }}>
                         {format(selectedDate, "yyyy-MM-dd")}
                     </Text>
 
                     <TouchableOpacity onPress={() => changeDate(1)}>
-                        <Text style={{ color: "#fff", fontSize: 24 }}>▶</Text>
+                        <Text style={{ color: "#fff", fontSize: 28 }}>▶</Text>
                     </TouchableOpacity>
                 </View>
                 <Text style={styles.headerText}>Notes for {dateKey}</Text>

@@ -19,6 +19,8 @@ import { Ionicons } from "@expo/vector-icons"
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import DateTimePicker from "@react-native-community/datetimepicker"
+
 const habitsList = [
   "Wake up 8:00AM",
   "Gym",
@@ -55,6 +57,26 @@ export default function HomeScreen() {
 
   const [habitData, setHabitData] = useState<Record<string, Record<string, number>>>({});
 
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+
+  useEffect(() => {
+    const loadStartDate = async () => {
+      const saved = await AsyncStorage.getItem("habitStartDate");
+      if (saved) setStartDate(new Date(saved));
+      else setStartDate(new Date());
+    };
+    loadStartDate();
+  }, []);
+
+  const onDateChange = async (event, selected) => {
+    setShowPicker(false);
+    if (selected) {
+      setStartDate(selected);
+      await AsyncStorage.setItem("habitStartDate", selected.toISOString());
+    }
+  };
+
   useEffect(() => {
     const loadHabits = async () => {
       try {
@@ -71,10 +93,10 @@ export default function HomeScreen() {
             }, {});
             return acc;
           }, {});
-  
+
           // Save to AsyncStorage
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(initialData));
-  
+
           // Set state
           setHabitData(initialData);
         }
@@ -82,7 +104,7 @@ export default function HomeScreen() {
         console.error("Failed to load habit data", e);
       }
     };
-  
+
     loadHabits();
   }, []);
 
@@ -131,7 +153,7 @@ export default function HomeScreen() {
 
   };
 
-  const dates = getNextNDates(30, START_DATE);
+  const dates = startDate ? getNextNDates(30, startDate) : [];
   const dateKeys = dates.map(date => format(date, "MM dd"));
 
   useEffect(() => {
@@ -146,9 +168,10 @@ export default function HomeScreen() {
   }, [habitData]);
 
   if (!habitData) return <Text>Loading...</Text>;
-  
+
   return (
     <>
+
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
 
@@ -175,6 +198,23 @@ export default function HomeScreen() {
               <View style={[styles.legendColor, styles.complete]} />
               <Text style={styles.legendText}>Complete</Text>
             </View>
+          </View>
+
+          <View style={{ flexDirection: "row", justifyContent: "center", alignItems: "center", marginBottom: 15, gap: 10 }}>
+            <TouchableOpacity onPress={() => setShowPicker(!showPicker)} style={{ marginLeft: 10 }}>
+              <Ionicons name="calendar-outline" size={22} color="#fff" />
+            </TouchableOpacity>
+
+            <Text style={{ color: "#888", fontSize: 14 }}>Pick a Start Date</Text>
+
+            {showPicker && (
+              <DateTimePicker
+                value={startDate || new Date()}
+                mode="date"
+                display="default"
+                onChange={onDateChange}
+              />
+            )}
           </View>
 
           <View style={styles.inputRow}>
