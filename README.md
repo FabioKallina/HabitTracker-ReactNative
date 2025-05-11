@@ -58,12 +58,12 @@ HabitTracker_RN/
 ### 1. **Clone The Repository**
 ```bash
 git clone https://github.com/FabioKallina/HabitTracker-ReactNative.git
-cd HabitTracker-RN
+cd HabitTracker-ReactNative
 ```
 
 ### 2. **Install Dependencies**
 ```bash
-npx expo install
+npm install
 ```
 
 ### 3. **Run The App**
