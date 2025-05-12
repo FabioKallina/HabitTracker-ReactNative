@@ -78,48 +78,57 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
+    if (!startDate) return;
+
     const loadHabits = async () => {
       try {
         const storedData = await AsyncStorage.getItem(STORAGE_KEY);
         if (storedData) {
-          setHabitData(JSON.parse(storedData));
-        } else {
-          // Create default habit data
-          const days = getNextNDates(30, START_DATE).map(date => format(date, "MM dd"));
-          const initialData = habitsList.reduce((acc: Record<string, Record<string, number>>, habit) => {
-            acc[habit] = days.reduce((dayAcc: Record<string, number>, date) => {
-              dayAcc[date] = 0;
-              return dayAcc;
-            }, {});
-            return acc;
-          }, {});
+          const parsed = JSON.parse(storedData);
 
-          // Save to AsyncStorage
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(initialData));
+          // Ensure storedData has all dates based on current startDate
+          const days = getNextNDates(30, startDate).map(date => format(date, "MM dd"));
+          let isIncomplete = false;
 
-          // Set state
-          setHabitData(initialData);
+          for (const habit of habitsList) {
+            for (const date of days) {
+              if (!parsed?.[habit]?.hasOwnProperty(date)) {
+                isIncomplete = true;
+                break;
+              }
+            }
+            if (isIncomplete) break;
+          }
+
+          if (isIncomplete) {
+            console.log("Old data is missing some dates, regenerating...");
+            await AsyncStorage.removeItem(STORAGE_KEY); // Clear old data
+          } else {
+            setHabitData(parsed);
+            return; // ✅ Valid data, exit early
+          }
         }
+
+        // If no data or it was incomplete, generate fresh data
+        const days = getNextNDates(30, startDate).map(date => format(date, "MM dd"));
+
+        const initialData = habitsList.reduce((acc: Record<string, Record<string, number>>, habit) => {
+          acc[habit] = days.reduce((dayAcc: Record<string, number>, date) => {
+            dayAcc[date] = 0;
+            return dayAcc;
+          }, {});
+          return acc;
+        }, {});
+
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(initialData));
+        setHabitData(initialData);
       } catch (e) {
-        console.error("Failed to load habit data", e);
+        console.error("Failed to load or initialize habit data", e);
       }
     };
 
     loadHabits();
-  }, []);
-
-  /*const [habitData, setHabitData] = useState(() => {
-
-    const days = getNextNDates(30, START_DATE).map(date => format(date, "MM dd"));
-
-    return habitsList.reduce((acc: Record<string, Record<string, number>>, habit) => {
-      acc[habit] = days.reduce((dayAcc: Record<string, number>, date) => {
-        dayAcc[date] = 0; // 0 = unspecififed, 1 = missed, 2 = partial, 3 = completed
-        return dayAcc;
-      }, {})
-      return acc;
-    }, {});
-  });*/
+  }, [startDate]);
 
   const toggleHabit = (habit: string, date: string) => {
     setHabitData(prev => {
@@ -153,7 +162,7 @@ export default function HomeScreen() {
 
   };
 
-  const dates = startDate ? getNextNDates(30, startDate) : [];
+  const dates = startDate ? getNextNDates(30, startDate || START_DATE) : [];
   const dateKeys = dates.map(date => format(date, "MM dd"));
 
   useEffect(() => {
@@ -167,7 +176,13 @@ export default function HomeScreen() {
     saveHabits();
   }, [habitData]);
 
-  if (!habitData) return <Text>Loading...</Text>;
+  /* useEffect(() => {
+  AsyncStorage.clear(); // ⚠️ This will delete all saved habit data
+}, []); */
+
+  if (!startDate || Object.keys(habitData).length === 0) {
+    return <Text style={{ color: "#333", textAlign: "center", marginTop: 40 }}>Loading...</Text>;
+  }
 
   return (
     <>
@@ -253,64 +268,68 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView style={styles.scrollContainer} contentContainerStyle={{ paddingBottom: 60 }}>
-          <ScrollView horizontal>
+          <View style={{ flexDirection: "row" }}>
+            {/* Fixed Habit Labels */}
             <View>
-              <View style={styles.headerRow}>
-                <View style={styles.habitColumnHeader}>
-                  <Text style={styles.habitColumn}>Habits:</Text>
-                </View>
-
-                {dates.map((dateObj) => {
-                  const formattedDate = format(dateObj, "MMM dd");
-                  const dayName = format(dateObj, "E");
-                  const [month, day] = formattedDate.split(" ");
-                  return (
-                    <View key={formattedDate} style={styles.dateCellAligned}>
-                      <Text style={styles.dayLabel}>{dayName}</Text>
-                      <Text style={styles.monthLabel}>{month}</Text>
-                      <Text style={styles.dateCell}>{day}</Text>
-                    </View>
-                  )
-                })}
+              <View style={[styles.habitColumnHeader, { height: 55 }]}>
+                <Text style={styles.habitColumn}>Habits:</Text>
               </View>
-
               {Object.keys(habitData).map((habit) => (
-                <View style={styles.gridRow} key={habit}>
-                  <View style={styles.habitColumnHeader}>
-
-                    <TouchableOpacity
-                      style={styles.removeHabitBtn}
-                      onPress={() => {
-                        setHabitData(prev => {
-                          const updated = { ...prev };
-                          delete updated[habit];
-                          return updated;
-                        })
-                      }}
-                    >
-                      <Ionicons name="close" size={16} color="#fa5252" />
-                    </TouchableOpacity>
-
-                    <Text style={styles.habitColumn}>{habit}</Text>
-
-                  </View>
-
-                  {dateKeys.map((date) => (
-                    <TouchableOpacity
-                      key={date}
-                      style={[styles.cell, getStateStyle(habitData?.[habit]?.[date] ?? 0)]}
-                      onPress={() => {
-                        toggleHabit(habit, date);
-                        Haptics.selectionAsync();
-                      }}
-                    />
-                  ))}
+                <View key={habit} style={[styles.habitColumnHeader, { height: 47, marginBottom: 4 }]}>
+                  <TouchableOpacity
+                    style={styles.removeHabitBtn}
+                    onPress={() => {
+                      setHabitData(prev => {
+                        const updated = { ...prev };
+                        delete updated[habit];
+                        return updated;
+                      });
+                    }}
+                  >
+                    <Ionicons name="close" size={16} color="#fa5252" />
+                  </TouchableOpacity>
+                  <Text style={styles.habitColumn}>{habit}</Text>
                 </View>
               ))}
             </View>
-          </ScrollView>
-        </ScrollView>
 
+            {/* Scrollable Grid */}
+            <ScrollView horizontal>
+              <View>
+                <View style={styles.headerRow}>
+                  {dates.map((dateObj) => {
+                    const formattedDate = format(dateObj, "MMM dd");
+                    const dayName = format(dateObj, "E");
+                    const [month, day] = formattedDate.split(" ");
+                    return (
+                      <View key={formattedDate} style={styles.dateCellAligned}>
+                        <Text style={styles.dayLabel}>{dayName}</Text>
+                        <Text style={styles.monthLabel}>{month}</Text>
+                        <Text style={styles.dateCell}>{day}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {Object.keys(habitData).map((habit) => (
+                  <View style={styles.gridRow} key={habit}>
+                    {dateKeys.map((date) => (
+                      <TouchableOpacity
+                        key={date}
+                        style={[styles.cell, getStateStyle(habitData?.[habit]?.[date] ?? 0)]}
+                        onPress={() => {
+                          toggleHabit(habit, date);
+                          Haptics.selectionAsync();
+                        }}
+                      />
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+        </ScrollView>
       </SafeAreaView>
     </>
   );
@@ -343,7 +362,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   habitColumnHeader: {
-    width: 175,
+    width: 155,
     justifyContent: 'flex-start',
     alignItems: "center",
     flexDirection: "row",
@@ -351,7 +370,7 @@ const styles = StyleSheet.create({
   },
   habitColumn: {
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
     color: "#fff",
   },
   dateCellAligned: {
